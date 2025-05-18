@@ -13,7 +13,12 @@ pub mod pydeas {
         let user_public_address = ctx.accounts.user.key();
 
         msg!("User {} -> {}: {}", user_public_address, title, explanation);
-        ctx.accounts.idea.set_inner(Idea{title, explanation, priority, progress, tags});
+                
+        ctx.accounts.idea.set_inner(
+            Idea{id: ctx.accounts.counter.value, title, explanation, priority, progress, tags}
+        );
+        ctx.accounts.counter.value += 1;
+
         Ok(())
     } 
 }
@@ -21,6 +26,8 @@ pub mod pydeas {
 #[account]  // data template
 #[derive(InitSpace)]  // Icd nitSpace needs speciying heap allocating types
 pub struct Idea {
+    pub id: u64,
+
     #[max_len(16)]
     pub title: String,
 
@@ -34,16 +41,31 @@ pub struct Idea {
     pub tags: Vec<String>,
 }
 
+#[account]
+#[derive(InitSpace)]
+pub struct Counter {
+    value: u64
+}
+
 #[derive(Accounts)]
 pub struct ThrowOutIdea<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = PROGRAM_DESCRIMINATOR_SIZE + Counter::INIT_SPACE,
+        seeds = [b"counter", user.key().as_ref()],
+        bump
+    )]
+    pub counter: Account<'info, Counter>,
+
     #[account( 
-        init_if_needed, // SHOULD BE enabled directly in toml     |     Iinit -
+        init, // init_if_needed, // SHOULD BE enabled directly in toml  using 'feature = init_if_needed'
         payer = user, 
         space = PROGRAM_DESCRIMINATOR_SIZE + Idea::INIT_SPACE,
-        seeds = [b"idea", user.key().as_ref()],
+        seeds = [b"idea", user.key().as_ref(), &counter.value.to_le_bytes()],
         bump
      )]
     pub idea: Account<'info, Idea>,
