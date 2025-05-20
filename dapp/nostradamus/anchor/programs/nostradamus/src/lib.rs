@@ -33,9 +33,10 @@ pub mod nostradamus {
         Ok(())
     }
 
-    pub fn add_market_outcome(ctx: Context<AddMarketOutcome>, market_id: u64) -> Result<()> {
+    pub fn add_market_outcome(ctx: Context<AddMarketOutcome>, market_id: u128, title: String) -> Result<()> {
         let outcome = &mut ctx.accounts.outcome;
         outcome.market_id = market_id;
+        outcome.title = title;
         outcome.index = ctx.accounts.market.outcomes_count;
         outcome.investments = 0;
         ctx.accounts.market.outcomes_count += 1;
@@ -89,10 +90,17 @@ pub struct InitializePredictionMarket<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_id: u64)]
+#[instruction(market_id: u128)]
 pub struct AddMarketOutcome<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"prediction_market", market_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub market: Account<'info, PredictionMarket>,
 
     #[account(
         init,
@@ -103,11 +111,6 @@ pub struct AddMarketOutcome<'info> {
     )]
     pub outcome: Account<'info, Outcome>,
 
-    #[account(
-        seeds = [b"prediction_market", market_id.to_le_bytes().as_ref()],
-        bump
-    )]
-    pub market: Account<'info, PredictionMarket>,
 
     pub system_program: Program<'info, System>,
 }
@@ -133,7 +136,7 @@ pub struct PredictionMarket {
 #[account]
 #[derive(InitSpace)]
 pub struct Outcome {
-    pub market_id: u64,
+    pub market_id: u128,
     #[max_len(32)]
     pub title: String,
     pub index: u8,
