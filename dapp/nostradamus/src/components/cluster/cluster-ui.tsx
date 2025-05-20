@@ -1,24 +1,21 @@
 'use client'
 
+import { useConnection } from '@solana/wallet-adapter-react'
+
 import { useQuery } from '@tanstack/react-query'
 import * as React from 'react'
 import { ReactNode } from 'react'
-import { getExplorerLink, GetExplorerLinkArgs } from 'gill'
+
+import { useCluster } from './cluster-data-access'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { AppAlert } from '@/components/app-alert'
-import { useWalletUi, useWalletUiCluster } from '@wallet-ui/react'
 
-export function ExplorerLink({
-  className,
-  label = '',
-  ...link
-}: GetExplorerLinkArgs & {
-  className?: string
-  label: string
-}) {
+export function ExplorerLink({ path, label, className }: { path: string; label: string; className?: string }) {
+  const { getExplorerUrl } = useCluster()
   return (
     <a
-      href={getExplorerLink(link)}
+      href={getExplorerUrl(path)}
       target="_blank"
       rel="noopener noreferrer"
       className={className ? className : `link font-mono`}
@@ -29,12 +26,12 @@ export function ExplorerLink({
 }
 
 export function ClusterChecker({ children }: { children: ReactNode }) {
-  const { client } = useWalletUi()
-  const { cluster } = useWalletUiCluster()
+  const { cluster } = useCluster()
+  const { connection } = useConnection()
 
   const query = useQuery({
-    queryKey: ['version', { cluster, endpoint: cluster.urlOrMoniker }],
-    queryFn: () => client.rpc.getVersion(),
+    queryKey: ['version', { cluster, endpoint: connection.rpcEndpoint }],
+    queryFn: () => connection.getVersion(),
     retry: 1,
   })
   if (query.isLoading) {
@@ -49,9 +46,27 @@ export function ClusterChecker({ children }: { children: ReactNode }) {
           </Button>
         }
       >
-        Error connecting to cluster <span className="font-bold">{cluster.label}</span>.
+        Error connecting to cluster <span className="font-bold">{cluster.name}</span>.
       </AppAlert>
     )
   }
   return children
+}
+
+export function ClusterUiSelect() {
+  const { clusters, setCluster, cluster } = useCluster()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline">{cluster.name}</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {clusters.map((item) => (
+          <DropdownMenuItem key={item.name} onClick={() => setCluster(item)}>
+            {item.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }

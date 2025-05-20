@@ -1,8 +1,12 @@
 'use client'
 
+import { useWallet } from '@solana/wallet-adapter-react'
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { RefreshCw } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+
+import { useCluster } from '../cluster/cluster-data-access'
 import { ExplorerLink } from '../cluster/cluster-ui'
 import {
   useGetBalance,
@@ -18,11 +22,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AppModal } from '@/components/app-modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { UiWalletAccount, useWalletUi, useWalletUiCluster } from '@wallet-ui/react'
-import { address, Address, Lamports, lamportsToSol } from 'gill'
-import { ErrorBoundary } from 'next/dist/client/components/error-boundary'
 
-export function AccountBalance({ address }: { address: Address }) {
+export function AccountBalance({ address }: { address: PublicKey }) {
   const query = useGetBalance({ address })
 
   return (
@@ -33,15 +34,15 @@ export function AccountBalance({ address }: { address: Address }) {
 }
 
 export function AccountChecker() {
-  const { account } = useWalletUi()
-  if (!account) {
+  const { publicKey } = useWallet()
+  if (!publicKey) {
     return null
   }
-  return <AccountBalanceCheck address={address(account.address)} />
+  return <AccountBalanceCheck address={publicKey} />
 }
 
-export function AccountBalanceCheck({ address }: { address: Address }) {
-  const { cluster } = useWalletUiCluster()
+export function AccountBalanceCheck({ address }: { address: PublicKey }) {
+  const { cluster } = useCluster()
   const mutation = useRequestAirdrop({ address })
   const query = useGetBalance({ address })
 
@@ -57,30 +58,27 @@ export function AccountBalanceCheck({ address }: { address: Address }) {
           </Button>
         }
       >
-        You are connected to <strong>{cluster.label}</strong> but your account is not found on this cluster.
+        You are connected to <strong>{cluster.name}</strong> but your account is not found on this cluster.
       </AppAlert>
     )
   }
   return null
 }
 
-export function AccountButtons({ address }: { address: Address }) {
-  const { cluster } = useWalletUiCluster()
-  const { account } = useWalletUi()
+export function AccountButtons({ address }: { address: PublicKey }) {
+  const { cluster } = useCluster()
   return (
     <div>
       <div className="space-x-2">
-        {cluster.urlOrMoniker === 'mainnet' ? null : <ModalAirdrop address={address} />}
-        <ErrorBoundary errorComponent={() => null}>
-          {account ? <ModalSend address={address} account={account} /> : null}
-        </ErrorBoundary>
+        {cluster.network?.includes('mainnet') ? null : <ModalAirdrop address={address} />}
+        <ModalSend address={address} />
         <ModalReceive address={address} />
       </div>
     </div>
   )
 }
 
-export function AccountTokens({ address }: { address: Address }) {
+export function AccountTokens({ address }: { address: PublicKey }) {
   const [showAll, setShowAll] = useState(false)
   const query = useGetTokenAccounts({ address })
   const client = useQueryClient()
@@ -133,7 +131,7 @@ export function AccountTokens({ address }: { address: Address }) {
                     <TableCell>
                       <div className="flex space-x-2">
                         <span className="font-mono">
-                          <ExplorerLink label={ellipsify(pubkey.toString())} address={pubkey.toString()} />
+                          <ExplorerLink label={ellipsify(pubkey.toString())} path={`account/${pubkey.toString()}`} />
                         </span>
                       </div>
                     </TableCell>
@@ -142,7 +140,7 @@ export function AccountTokens({ address }: { address: Address }) {
                         <span className="font-mono">
                           <ExplorerLink
                             label={ellipsify(account.data.parsed.info.mint)}
-                            address={account.data.parsed.info.mint.toString()}
+                            path={`account/${account.data.parsed.info.mint.toString()}`}
                           />
                         </span>
                       </div>
@@ -171,7 +169,7 @@ export function AccountTokens({ address }: { address: Address }) {
   )
 }
 
-export function AccountTransactions({ address }: { address: Address }) {
+export function AccountTransactions({ address }: { address: PublicKey }) {
   const query = useGetSignatures({ address })
   const [showAll, setShowAll] = useState(false)
 
@@ -213,12 +211,12 @@ export function AccountTransactions({ address }: { address: Address }) {
                 {items?.map((item) => (
                   <TableRow key={item.signature}>
                     <TableHead className="font-mono">
-                      <ExplorerLink transaction={item.signature} label={ellipsify(item.signature, 8)} />
+                      <ExplorerLink path={`tx/${item.signature}`} label={ellipsify(item.signature, 8)} />
                     </TableHead>
                     <TableCell className="font-mono text-right">
-                      <ExplorerLink block={item.slot.toString()} label={item.slot.toString()} />
+                      <ExplorerLink path={`block/${item.slot}`} label={item.slot.toString()} />
                     </TableCell>
-                    <TableCell>{new Date((Number(item.blockTime) ?? 0) * 1000).toISOString()}</TableCell>
+                    <TableCell>{new Date((item.blockTime ?? 0) * 1000).toISOString()}</TableCell>
                     <TableCell className="text-right">
                       {item.err ? (
                         <span className="text-red-500" title={item.err.toString()}>
@@ -248,11 +246,11 @@ export function AccountTransactions({ address }: { address: Address }) {
   )
 }
 
-function BalanceSol({ balance }: { balance: Lamports }) {
-  return <span>{lamportsToSol(balance)}</span>
+function BalanceSol({ balance }: { balance: number }) {
+  return <span>{Math.round((balance / LAMPORTS_PER_SOL) * 100000) / 100000}</span>
 }
 
-function ModalReceive({ address }: { address: Address }) {
+function ModalReceive({ address }: { address: PublicKey }) {
   return (
     <AppModal title="Receive">
       <p>Receive assets by sending them to your public key:</p>
@@ -261,7 +259,7 @@ function ModalReceive({ address }: { address: Address }) {
   )
 }
 
-function ModalAirdrop({ address }: { address: Address }) {
+function ModalAirdrop({ address }: { address: PublicKey }) {
   const mutation = useRequestAirdrop({ address })
   const [amount, setAmount] = useState('2')
 
@@ -287,12 +285,13 @@ function ModalAirdrop({ address }: { address: Address }) {
   )
 }
 
-function ModalSend(props: { address: Address; account: UiWalletAccount }) {
-  const mutation = useTransferSol({ address: props.address, account: props.account })
+function ModalSend({ address }: { address: PublicKey }) {
+  const wallet = useWallet()
+  const mutation = useTransferSol({ address })
   const [destination, setDestination] = useState('')
   const [amount, setAmount] = useState('1')
 
-  if (!props.address || !props.account) {
+  if (!address || !wallet.sendTransaction) {
     return <div>Wallet not connected</div>
   }
 
@@ -303,7 +302,7 @@ function ModalSend(props: { address: Address; account: UiWalletAccount }) {
       submitLabel="Send"
       submit={() => {
         mutation.mutateAsync({
-          destination: address(destination),
+          destination: new PublicKey(destination),
           amount: parseFloat(amount),
         })
       }}
