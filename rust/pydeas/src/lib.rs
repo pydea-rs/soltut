@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-pub const PROGRAM_DESCRIMINATOR_SIZE: usize = 8;
+pub const PROGRAM_DISCRIMINATOR_SIZE: usize = 8;
 
 declare_id!("11111111111111111111111111111111");
 
@@ -9,7 +9,7 @@ pub mod pydeas {
     use super::*;
 
     pub fn throw_out_idea(ctx: Context<ThrowOutIdea>, title: String, explanation: String, priority: u8, progress: f32, tags: Vec<String>) -> Result<()> {
-        msg!("{}: Whatsuo?", ctx.program_id);
+        msg!("{}: Whatsup?", ctx.program_id);
         let user_public_address = ctx.accounts.user.key();
 
         msg!("User {} -> {}: {}", user_public_address, title, explanation);
@@ -24,7 +24,7 @@ pub mod pydeas {
 }
 
 #[account]  // data template
-#[derive(InitSpace)]  // Icd nitSpace needs speciying heap allocating types
+#[derive(InitSpace)]  // Icd nitSpace needs specifying heap allocating types
 pub struct Idea {
     pub id: u64,
 
@@ -55,7 +55,7 @@ pub struct ThrowOutIdea<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = PROGRAM_DESCRIMINATOR_SIZE + Counter::INIT_SPACE,
+        space = PROGRAM_DISCRIMINATOR_SIZE + Counter::INIT_SPACE,
         seeds = [b"counter", user.key().as_ref()],
         bump
     )]
@@ -64,7 +64,7 @@ pub struct ThrowOutIdea<'info> {
     #[account( 
         init, // init_if_needed, // SHOULD BE enabled directly in toml  using 'feature = init_if_needed'
         payer = user, 
-        space = PROGRAM_DESCRIMINATOR_SIZE + Idea::INIT_SPACE,
+        space = PROGRAM_DISCRIMINATOR_SIZE + Idea::INIT_SPACE,
         seeds = [b"idea", user.key().as_ref(), &counter.value.to_le_bytes()],
         bump
      )]
