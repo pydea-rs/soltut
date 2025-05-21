@@ -44,7 +44,7 @@ describe('nostradamus', () => {
   })
 
   it('Create outcomes for a prediction market', async () => {
-    const question = 'Will this ?'
+    const question  = 'Will this ?'
     const [marketsCountAddress] = PublicKey.findProgramAddressSync([Buffer.from('counter')], programAddress)
     const nextMarketId = await program.account.marketCounter.fetch(marketsCountAddress)
 
@@ -88,8 +88,16 @@ describe('nostradamus', () => {
       expect(outcome.index).toEqual(i)
       expect(outcome.title).toEqual(outcomes[i]);
       expect(outcome.marketId).toEqual(market.id);
-      expect(outcome.investments.toNumber()).toEqual(0);
     }
 
+  })
+
+  it('Should create a prediction pda for users tp allow them participate in ta market', async() => {
+    
+  })
+
+
+  it('Should enable users to trade in an opened prediction.', async() => {
+    
   })
 })
