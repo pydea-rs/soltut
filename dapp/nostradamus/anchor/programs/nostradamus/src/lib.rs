@@ -93,7 +93,7 @@ pub mod nostradamus {
             require!(
                 buying_amount < ctx.accounts.user.lamports(),
                 TradeErrors::InsufficientCollateralBalance
-            ); 
+            );
             invoke(
                 &system_instruction::transfer(ctx.accounts.user.key, &prediction.key(), buying_amount),
                 &[
