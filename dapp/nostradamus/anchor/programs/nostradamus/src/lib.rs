@@ -2,9 +2,7 @@
 
 use anchor_lang::prelude::*;
 
-use anchor_lang::solana_program::{
-    system_instruction, program::invoke,
-};
+use anchor_lang::solana_program::{program::invoke, system_instruction};
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
@@ -23,6 +21,8 @@ declare_id!("FqzkXZdwYjurnUKetJCAvaUw5WAqbwzU6gZEwydeEfqS");
 
 #[program]
 pub mod nostradamus {
+
+    use anchor_lang::solana_program::program::invoke_signed;
 
     use super::*;
 
@@ -68,8 +68,14 @@ pub mod nostradamus {
         ctx: Context<CreatePrediction>,
         market_id: u128,
         outcome_index: u8,
-        ratio: f64,
+        ratio: u128,
     ) -> Result<()> {
+        msg!(
+            "Creating prediction for market: {}, outcome: {}, ratio: {}",
+            market_id,
+            outcome_index,
+            ratio
+        );
         let prediction = &mut ctx.accounts.prediction;
         prediction.market_id = market_id;
         prediction.outcome_index = outcome_index;
@@ -80,9 +86,9 @@ pub mod nostradamus {
 
     pub fn trade_predicted_outcome(
         ctx: Context<TradePredictedOutcome>,
-        _market_id: u128,
-        _outcome_index: u8,
-        _ratio: f64,
+        market_id: u128,
+        outcome_index: u8,
+        ratio: u128,
         amount: i64,
     ) -> Result<()> {
         let prediction = &mut ctx.accounts.prediction;
@@ -95,29 +101,47 @@ pub mod nostradamus {
                 TradeErrors::InsufficientCollateralBalance
             );
             invoke(
-                &system_instruction::transfer(ctx.accounts.user.key, &prediction.key(), buying_amount),
+                &system_instruction::transfer(
+                    ctx.accounts.user.key,
+                    &prediction.key(),
+                    buying_amount,
+                ),
                 &[
                     ctx.accounts.user.to_account_info(),
                     prediction.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
                 ],
-            )?; // TODO: These trasners are just sample transfers and needs revising.
-            prediction.investment += buying_amount;
+            )?; // TODO: These transfers are just sample transfers and needs revising.
+            prediction.investment += buying_amount as u128;
         } else {
             let selling_amount = amount.abs() as u64;
-            require!(selling_amount < prediction.investment, TradeErrors::InsufficientOutcomeBalance);
+            require!(
+                (selling_amount as u128) <= prediction.investment,
+                TradeErrors::InsufficientOutcomeBalance
+            );
 
-            invoke(
+            let prediction_seeds: &[&[u8]] = &[
+                b"positions",
+                &market_id.to_le_bytes(),
+                &[outcome_index],
+                &ratio.to_le_bytes(),
+                ctx.accounts.user.key.as_ref(),
+                &[prediction.bump],
+            ]; // NOTE - This section needs updating in case of prediction seeds changing.
+            invoke_signed(
                 &system_instruction::transfer(
-                    &prediction.key(), ctx.accounts.user.key, selling_amount,
+                    &prediction.key(),
+                    ctx.accounts.user.key,
+                    selling_amount,
                 ),
                 &[
                     prediction.to_account_info(),
                     ctx.accounts.user.to_account_info(),
                     ctx.accounts.system_program.to_account_info(),
-                ]
-            )?;
-            prediction.investment -= selling_amount;
+                ],
+                &[prediction_seeds],
+            )?; // FIXME: This still has a bug
+            prediction.investment -= selling_amount as u128;
         }
         Ok(())
     }
@@ -190,7 +214,7 @@ pub struct AddMarketOutcome<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_id: u128, outcome_index: u8, ratio: u8)]
+#[instruction(market_id: u128, outcome_index: u8, ratio: u128)]
 pub struct CreatePrediction<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -211,7 +235,7 @@ pub struct CreatePrediction<'info> {
         init,
         payer = user,
         space = DISCRIMINATOR_SIZE + Prediction::INIT_SPACE,
-        seeds = [market.id.to_le_bytes().as_ref(), outcome.index.to_le_bytes().as_ref(), ratio.to_le_bytes().as_ref(), user.key().as_ref()],
+        seeds = [b"positions", market.id.to_le_bytes().as_ref(), outcome.index.to_le_bytes().as_ref(), ratio.to_le_bytes().as_ref(), user.key().as_ref()],
         bump
     )]
     pub prediction: Account<'info, Prediction>,
@@ -219,7 +243,7 @@ pub struct CreatePrediction<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(market_id: u128, outcome_index: u8, ratio: u8, amount: i64)]
+#[instruction(market_id: u128, outcome_index: u8, ratio: u128, amount: i64)]
 pub struct TradePredictedOutcome<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -238,7 +262,7 @@ pub struct TradePredictedOutcome<'info> {
 
     #[account(
         mut,
-        seeds = [market.id.to_le_bytes().as_ref(), outcome.index.to_le_bytes().as_ref(), ratio.to_le_bytes().as_ref(), user.key().as_ref()],
+        seeds = [b"positions", market.id.to_le_bytes().as_ref(), outcome.index.to_le_bytes().as_ref(), ratio.to_le_bytes().as_ref(), user.key().as_ref()],
         bump = prediction.bump,
     )]
     pub prediction: Account<'info, Prediction>,
@@ -281,7 +305,7 @@ pub struct Outcome {
 pub struct Prediction {
     pub market_id: u128,
     pub outcome_index: u8,
-    pub ratio: f64, // 100% - Yes, 0 - No; Can also be 0->100% or any continues value in continues prediction markets.
-    pub investment: u64,
+    pub ratio: u128, // 100% - Yes, 0 - No; Can also be 0->100% or any continues value in continues prediction markets (9 digits decimal -> / 1e9)
+    pub investment: u128,
     pub bump: u8,
 }

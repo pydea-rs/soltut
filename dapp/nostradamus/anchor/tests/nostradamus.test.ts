@@ -10,6 +10,7 @@ describe('nostradamus', () => {
   let ctx: ProgramTestContext
   let provider: BankrunProvider
   let program: anchor.Program<Nostradamus>
+  let sampleMarketId: anchor.BN
 
   beforeAll(async () => {
     ctx = await startAnchor('', [{ name: 'nostradamus', programId: programAddress }], [])
@@ -44,7 +45,7 @@ describe('nostradamus', () => {
   })
 
   it('Create outcomes for a prediction market', async () => {
-    const question  = 'Will this ?'
+    const question = 'Will this ?'
     const [marketsCountAddress] = PublicKey.findProgramAddressSync([Buffer.from('counter')], programAddress)
     const nextMarketId = await program.account.marketCounter.fetch(marketsCountAddress)
 
@@ -74,7 +75,6 @@ describe('nostradamus', () => {
 
     const outcomes = ['A', 'B']
     for (let i = 0; i < 2; i++) {
-
       const [outcomeAddress] = PublicKey.findProgramAddressSync(
         [
           Buffer.from('outcome'),
@@ -82,22 +82,118 @@ describe('nostradamus', () => {
           new anchor.BN(i).toArrayLike(Buffer, 'le', 1),
         ],
         programAddress,
-      );
+      )
 
-      const outcome = await program.account.outcome.fetch(outcomeAddress);
+      const outcome = await program.account.outcome.fetch(outcomeAddress)
       expect(outcome.index).toEqual(i)
-      expect(outcome.title).toEqual(outcomes[i]);
-      expect(outcome.marketId).toEqual(market.id);
+      expect(outcome.title).toEqual(outcomes[i])
+      expect(outcome.marketId).toEqual(market.id)
     }
-
+    sampleMarketId = nextMarketId.value
   })
 
-  it('Should create a prediction pda for users tp allow them participate in ta market', async() => {
-    
+  it('Should create a prediction pda for users to allow them participate in a discrete market', async () => {
+    await Promise.all(
+      Array.from({ length: 2 }).map((_, idx) =>
+        program.methods.createPrediction(sampleMarketId, idx, new anchor.BN(1)).rpc(),
+      ),
+    )
+
+    const [[predictionA_Address], [predictionB_Address]] = Array.from({ length: 2 }).map((_, idx) =>
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('positions'),
+          sampleMarketId.toArrayLike(Buffer, 'le', 16),
+          new anchor.BN(idx).toArrayLike(Buffer, 'le', 1),
+          new anchor.BN(1).toArrayLike(Buffer, 'le', 16),
+          provider.wallet.publicKey.toBuffer(),
+        ],
+        programAddress,
+      ),
+    )
+
+    const predictions = await Promise.all(
+      [predictionA_Address, predictionB_Address].map((address) => program.account.prediction.fetch(address)),
+    )
+    for (let i = 0; i < 2; i++) {
+      expect(predictions[i].marketId).toEqual(sampleMarketId)
+      expect(predictions[i].outcomeIndex).toEqual(i)
+      expect(predictions[i].ratio.toString()).toEqual('1')
+      expect(predictions[i].investment.toNumber()).toEqual(0)
+    }
+  })
+  it('Should enable users to buy outcomes in an opened prediction.', async () => {
+    const testInvestmentAmount = 10
+    await Promise.all(
+      Array.from({ length: 2 }).map((_, idx) =>
+        program.methods
+          .tradePredictedOutcome(sampleMarketId, idx, new anchor.BN(1), new anchor.BN(testInvestmentAmount))
+          .rpc(),
+      ),
+    )
+
+    const [[predictionA_Address], [predictionB_Address]] = Array.from({ length: 2 }).map((_, idx) =>
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('positions'),
+          sampleMarketId.toArrayLike(Buffer, 'le', 16),
+          new anchor.BN(idx).toArrayLike(Buffer, 'le', 1),
+          new anchor.BN(1).toArrayLike(Buffer, 'le', 16),
+          provider.wallet.publicKey.toBuffer(),
+        ],
+        programAddress,
+      ),
+    )
+
+    const predictions = await Promise.all(
+      [predictionA_Address, predictionB_Address].map((address) => program.account.prediction.fetch(address)),
+    )
+
+    for (let i = 0; i < 2; i++) {
+      expect(predictions[i].marketId).toEqual(sampleMarketId)
+      expect(predictions[i].outcomeIndex).toEqual(i)
+      expect(predictions[i].ratio.toString()).toEqual('1')
+      expect(predictions[i].investment.toString()).toEqual(testInvestmentAmount.toString())
+    }
   })
 
+  it('Should enable users to sell outcomes in an opened prediction.', async () => {
+    const [[predictionA_Address], [predictionB_Address]] = Array.from({ length: 2 }).map((_, idx) =>
+      PublicKey.findProgramAddressSync(
+        [
+          Buffer.from('positions'),
+          sampleMarketId.toArrayLike(Buffer, 'le', 16),
+          new anchor.BN(idx).toArrayLike(Buffer, 'le', 1),
+          new anchor.BN(1).toArrayLike(Buffer, 'le', 16),
+          provider.wallet.publicKey.toBuffer(),
+        ],
+        programAddress,
+      ),
+    )
+    const testSellAmount = 7
+    const initialInvestmentAmounts = (
+      await Promise.all(
+        [predictionA_Address, predictionB_Address].map((address) => program.account.prediction.fetch(address)),
+      )
+    ).map((x) => x.investment)
 
-  it('Should enable users to trade in an opened prediction.', async() => {
-    
+    await Promise.all(
+      Array.from({ length: 2 }).map((_, idx) =>
+        program.methods
+          .tradePredictedOutcome(sampleMarketId, idx, new anchor.BN(1), new anchor.BN(testSellAmount).neg())
+          .rpc(),
+      ),
+    )
+
+    const predictions = await Promise.all(
+      [predictionA_Address, predictionB_Address].map((address) => program.account.prediction.fetch(address)),
+    )
+
+    for (let i = 0; i < 2; i++) {
+      expect(predictions[i].marketId).toEqual(sampleMarketId)
+      expect(predictions[i].outcomeIndex).toEqual(i)
+      expect(predictions[i].ratio.toString()).toEqual('1')
+      expect(predictions[i].investment.toString()).toEqual(initialInvestmentAmounts[i].sub(new anchor.BN(testSellAmount)).toString())
+    }
   })
 })
