@@ -2,7 +2,8 @@
 
 use anchor_lang::prelude::*;
 
-use anchor_lang::solana_program::{program::invoke, system_instruction};
+use anchor_lang::solana_program::{program::invoke, system_instruction, program::invoke_signed};
+// use anchor_lang::system_program;
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
@@ -22,7 +23,6 @@ declare_id!("FqzkXZdwYjurnUKetJCAvaUw5WAqbwzU6gZEwydeEfqS");
 #[program]
 pub mod nostradamus {
 
-    use anchor_lang::solana_program::program::invoke_signed;
 
     use super::*;
 
@@ -70,12 +70,6 @@ pub mod nostradamus {
         outcome_index: u8,
         ratio: u128,
     ) -> Result<()> {
-        msg!(
-            "Creating prediction for market: {}, outcome: {}, ratio: {}",
-            market_id,
-            outcome_index,
-            ratio
-        );
         let prediction = &mut ctx.accounts.prediction;
         prediction.market_id = market_id;
         prediction.outcome_index = outcome_index;
@@ -141,6 +135,12 @@ pub mod nostradamus {
                 ],
                 &[prediction_seeds],
             )?; // FIXME: This still has a bug
+            // let transfer_accs = system_program::Transfer {
+            //     from: prediction.to_account_info(),
+            //     to: ctx.accounts.user.to_account_info(),
+            // };
+            // let cpi_ctx = CpiContext::new(ctx.accounts.system_program.to_account_info(), transfer_accs).with_signer(prediction_seeds);
+            // system_program::transfer(cpi_ctx, selling_amount)?;
             prediction.investment -= selling_amount as u128;
         }
         Ok(())
