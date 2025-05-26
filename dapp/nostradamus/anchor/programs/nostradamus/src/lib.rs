@@ -250,7 +250,7 @@ pub struct TradePredictedOutcome<'info> {
 
     #[account(
         seeds = [b"prediction_market", market_id.to_le_bytes().as_ref()],
-        bump = market.bump,
+        bump = market.bump,         
     )]
     pub market: Account<'info, PredictionMarket>,
 
