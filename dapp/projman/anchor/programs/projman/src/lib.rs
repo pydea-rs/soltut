@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-declare_id!("JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H");
+declare_id!("EVv5dxogrbbrWL6Yywv2JFAHqcdeoo2LMrj8BPgFfsm1");
 
 #[error_code]
 pub enum ProjmanErrors {
@@ -10,7 +10,9 @@ pub enum ProjmanErrors {
     #[msg("Progress needs to be a valid percentage of the work!")]
     InvalidProgress,
     #[msg("Start time must be in future!")]
-    InvalidTime
+    InvalidTime,
+    #[msg("Project not started yet!")]
+    NotStartedYet,
 }
 
 fn get_time() -> u64 {
@@ -77,7 +79,13 @@ pub mod projman {
         let project = &mut ctx.accounts.project;
         require!(progress != project.progress, ProjmanErrors::NothingUpdated);
         require!(progress <= 100.0_f32 && progress >= 0.0_f32, ProjmanErrors::InvalidProgress);
+        require!(progress == 0.0_f32 || get_time() >= project.starts_at, ProjmanErrors::NotStartedYet);
+
         project.progress = progress;
+        Ok(())
+    }
+
+    pub fn delete_project(_ctx: Context<DeleteProject>, _ident: String) -> Result<()> {
         Ok(())
     }
 }
@@ -92,7 +100,7 @@ pub struct CreateProject<'info> {
         init,
         payer = user,
         space = 8 + Project::INIT_SPACE,
-        seeds = [b"project", user.key().as_ref(), ident.as_bytes().as_ref()],
+        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
         bump
     )]
     pub project: Account<'info, Project>,
@@ -112,7 +120,7 @@ pub struct UpdateProject<'info> {
         realloc = 8 + Project::INIT_SPACE,
         realloc::payer = user,
         realloc::zero = true,
-        seeds = [b"project", user.key().as_ref(), ident.as_bytes().as_ref()],
+        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
         bump = project.bump,
     )]
     pub project: Account<'info, Project>,
@@ -124,20 +132,33 @@ pub struct UpdateProject<'info> {
 #[derive(Accounts)]
 #[instruction(ident: String)]
 pub struct UpdateProjectProgress<'info> {
-    #[account()]
+    #[account()] // TODO: Does user pay here?
     pub user: Signer<'info>,
 
     #[account(
         mut,
-        seeds = [b"project", user.key().as_ref(), ident.as_bytes().as_ref()],
+        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
         bump = project.bump,
     )]
     pub project: Account<'info, Project>,
 }
 
 #[derive(Accounts)]
+#[instruction(ident: String)]
 pub struct DeleteProject<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
 
+    #[account(
+        mut,
+        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
+        bump = project.bump,
+        close = user,
+    )]
+    pub project: Account<'info, Project>,
+
+    #[account()]
+    pub system_program: Program<'info, System>,
 }
 
 #[account]
