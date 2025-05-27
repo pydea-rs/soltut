@@ -1,4 +1,4 @@
-import BasicFeature from '@/components/basic/basic-feature'
+import BasicFeature from '@/components/projman/feature'
 
 export default function Page() {
   return <BasicFeature />

@@ -53,7 +53,7 @@ pub mod projman {
         let project = &mut ctx.accounts.project;
         let title_changed = title.len() > 0;
         let description_changed = description.len() > 0;
-        let starts_at_changed = starts_at != project.starts_at;
+        let starts_at_changed = starts_at > 0 && starts_at != project.starts_at;
 
         require!(
             title_changed || description_changed || starts_at_changed,
@@ -83,7 +83,7 @@ pub mod projman {
         Ok(())
     }
 
-    pub fn delete_project(_ctx: Context<DeleteProject>, _ident: String) -> Result<()> {
+    pub fn cancel_project(_ctx: Context<CancelProject>, _ident: String) -> Result<()> {
         Ok(())
     }
 }
@@ -98,7 +98,7 @@ pub struct CreateProject<'info> {
         init,
         payer = user,
         space = 8 + Project::INIT_SPACE,
-        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
+        seeds = [b"projects", user.key().as_ref(), ident.as_str().as_bytes().as_ref()],
         bump
     )]
     pub project: Account<'info, Project>,
@@ -143,7 +143,7 @@ pub struct UpdateProjectProgress<'info> {
 
 #[derive(Accounts)]
 #[instruction(ident: String)]
-pub struct DeleteProject<'info> {
+pub struct CancelProject<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
 
@@ -164,7 +164,7 @@ pub struct DeleteProject<'info> {
 pub struct Project {
     #[max_len(64)]
     pub title: String,
-    #[max_len(16)]
+    #[max_len(32)]
     pub ident: String,
     #[max_len(256)]
     pub description: String,

@@ -1,20 +1,25 @@
 'use client'
 
-import { useBasicProgram } from './basic-data-access'
+import { useProjmanProgram } from './data-access'
 import { Button } from '@/components/ui/button'
 
-export function BasicCreate() {
-  const { greet } = useBasicProgram()
+export function ProjmanCreate() {
+  const { createNewProject } = useProjmanProgram()
 
   return (
-    <Button onClick={() => greet.mutateAsync()} disabled={greet.isPending}>
-      Run program{greet.isPending && '...'}
+    <Button
+      onClick={() =>
+        createNewProject.mutateAsync({ title: 'test', description: 'test', startsAt: new Date(2026, 1, 1) })
+      }
+      disabled={createNewProject.isPending}
+    >
+      Run program{createNewProject.isPending && '...'}
     </Button>
   )
 }
 
-export function BasicProgram() {
-  const { getProgramAccount } = useBasicProgram()
+export function ProjmanProgram() {
+  const { getProgramAccount } = useProjmanProgram()
 
   if (getProgramAccount.isLoading) {
     return <span className="loading loading-spinner loading-lg"></span>
