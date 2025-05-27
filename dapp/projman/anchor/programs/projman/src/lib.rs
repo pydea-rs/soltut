@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use std::time::{SystemTime, UNIX_EPOCH};
+use anchor_lang::solana_program::clock::Clock;
 
 declare_id!("EVv5dxogrbbrWL6Yywv2JFAHqcdeoo2LMrj8BPgFfsm1");
 
@@ -15,11 +15,8 @@ pub enum ProjmanErrors {
     NotStartedYet,
 }
 
-fn get_time() -> u64 {
-    let now = SystemTime::now();
-    now.duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs()
+pub fn get_time() -> u64 {
+    Clock::get().unwrap().unix_timestamp as u64
 }
 
 #[program]
@@ -37,6 +34,7 @@ pub mod projman {
 
         project.ident = ident;
         project.title = title;
+
         require!(get_time() <= starts_at, ProjmanErrors::InvalidTime);
         project.starts_at = starts_at;
         project.description = description;
