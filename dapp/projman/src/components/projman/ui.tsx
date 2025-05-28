@@ -19,7 +19,7 @@ export function ProjmanCreate() {
 }
 
 export function ProjmanProgram() {
-  const { getProgramAccount } = useProjmanProgram()
+  const {  getProgramAccount } = useProjmanProgram()
 
   if (getProgramAccount.isLoading) {
     return <span className="loading loading-spinner loading-lg"></span>

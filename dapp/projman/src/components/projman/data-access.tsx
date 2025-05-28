@@ -12,6 +12,7 @@ import * as anchor from '@coral-xyz/anchor'
 import { useTransactionToast } from '../use-transaction-toast'
 import { toast } from 'sonner'
 import { getNextIdent } from '../utils'
+import { PublicKey } from '@solana/web3.js'
 
 export function useProjmanProgram() {
   const { connection } = useConnection()
@@ -51,6 +52,34 @@ export function useProjmanProgram() {
     onError: (err) => toast.error('Failed to create project', { description: err.message }),
   })
 
+  return {
+    program,
+    programId,
+    accounts,
+    getProgramAccount,
+    createNewProject,
+  }
+}
+
+export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
+  const { cluster } = useCluster()
+
+  const provider = useAnchorProvider()
+  const programId = useMemo(() => getProjmanProgramId(cluster.network as Cluster), [cluster])
+  const program = useMemo(() => getProjmanProgram(provider, programId), [provider, programId])
+  const transactionToast = useTransactionToast()
+
+  const accountQuery = useQuery({
+    queryFn: () => program.account.project.fetch(account),
+    queryKey: ['get-projman-account', { cluster, account }],
+    enabled: !!account,
+  })
+
+  const accounts = useQuery({
+    queryKey: ['ProjmanAccounts', 'all', { cluster }],
+    queryFn: () => program.account.project.all(),
+  })
+
   const updateProject = useMutation<string, Error, UpdateProjectArgs>({
     mutationKey: ['updateProject', 'update', { cluster }],
     mutationFn: async ({ ident, title, description, startsAt }) =>
@@ -61,6 +90,7 @@ export function useProjmanProgram() {
       transactionToast(signature)
       toast.success(`Projetct successfully updated.`)
       accounts.refetch()
+      accountQuery.refetch()
     },
     onError: (err: Error) => toast.error('Failed updating project', { description: err.message }),
   })
@@ -72,6 +102,7 @@ export function useProjmanProgram() {
       transactionToast(signature)
       toast.success(`Projetct successfully updated.`)
       accounts.refetch()
+      accountQuery.refetch()
     },
     onError: (err: Error) => toast.error('Failed updating project', { description: err.message }),
   })
@@ -85,16 +116,9 @@ export function useProjmanProgram() {
       transactionToast(signature)
       toast.info('Project canceled!')
       accounts.refetch()
+      accountQuery.refetch()
     },
     onError: (err: Error) => toast.error('Failed updating project', { description: err.message }),
   })
-  return {
-    program,
-    programId,
-    getProgramAccount,
-    createNewProject,
-    updateProject,
-    updateProjectProgress,
-    cancelProject,
-  }
+  return { program, programId, accountQuery, updateProject, updateProjectProgress, cancelProject }
 }
