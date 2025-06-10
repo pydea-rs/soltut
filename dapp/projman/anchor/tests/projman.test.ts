@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js'
 import * as IDL from '../target/idl/projman.json'
 import { ProgramTestContext, startAnchor } from 'solana-bankrun'
 import { BankrunProvider } from 'anchor-bankrun'
-import { getNextIdent } from '@/components/utils'
+import { getNextIdent } from '../../src/components/utils'
 
 const programId = new PublicKey('EVv5dxogrbbrWL6Yywv2JFAHqcdeoo2LMrj8BPgFfsm1')
 
@@ -24,7 +24,7 @@ describe('projman', () => {
   it('should run the program', async () => {
     // Add your test here.
     const startsAt = new Date(2026, 1, 1).getTime() / 1e3
-    const ident = getNextIdent();
+    const ident = getNextIdent()
     await program.methods.createProject(ident, 'title', 'description', new anchor.BN(startsAt | 0)).rpc()
 
     if (!provider.wallet) {

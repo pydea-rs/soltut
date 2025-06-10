@@ -98,7 +98,7 @@ pub struct CreateProject<'info> {
         init,
         payer = user,
         space = 8 + Project::INIT_SPACE,
-        seeds = [b"projects", user.key().as_ref(), ident.as_str().as_bytes().as_ref()],
+        seeds = [b"projects", user.key().as_ref(), ident.as_bytes().as_ref()],
         bump
     )]
     pub project: Account<'info, Project>,
