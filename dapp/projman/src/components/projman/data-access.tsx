@@ -34,7 +34,7 @@ export function useProjmanProgram() {
   })
 
   const createNewProject = useMutation<{ ident: string; sig: string }, Error, CreateNewProjectArgs>({
-    mutationKey: ['createNewProject', 'create', { cluster }],
+    mutationKey: ['project', 'create', { cluster }],
     mutationFn: async ({ title, description, startsAt }) => {
       const ident = getNextIdent()
       return {
@@ -64,10 +64,9 @@ export function useProjmanProgram() {
 export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
   const { cluster } = useCluster()
 
-  const provider = useAnchorProvider()
-  const programId = useMemo(() => getProjmanProgramId(cluster.network as Cluster), [cluster])
-  const program = useMemo(() => getProjmanProgram(provider, programId), [provider, programId])
   const transactionToast = useTransactionToast()
+
+  const { program, accounts } = useProjmanProgram()
 
   const accountQuery = useQuery({
     queryFn: () => program.account.project.fetch(account),
@@ -75,13 +74,8 @@ export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
     enabled: !!account,
   })
 
-  const accounts = useQuery({
-    queryKey: ['ProjmanAccounts', 'all', { cluster }],
-    queryFn: () => program.account.project.all(),
-  })
-
   const updateProject = useMutation<string, Error, UpdateProjectArgs>({
-    mutationKey: ['updateProject', 'update', { cluster }],
+    mutationKey: ['project', 'update', { cluster }],
     mutationFn: async ({ ident, title, description, startsAt }) =>
       program.methods
         .updateProject(ident, title || '', description || '', new anchor.BN(((startsAt?.getTime() ?? 0) / 1e3) | 0))
@@ -96,7 +90,7 @@ export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
   })
 
   const updateProjectProgress = useMutation<string, Error, UpdateProjectProgressArgs>({
-    mutationKey: ['updateProjectProgress', 'update-progress', { cluster }],
+    mutationKey: ['project', 'update-progress', { cluster }],
     mutationFn: ({ ident, progress }) => program.methods.updateProjectProgress(ident.toString(), progress).rpc(),
     onSuccess: (signature: string) => {
       transactionToast(signature)
@@ -108,7 +102,7 @@ export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
   })
 
   const cancelProject = useMutation({
-    mutationKey: ['cancelProject', 'delete', { cluster }],
+    mutationKey: ['project', 'delete', { cluster }],
     mutationFn: (ident: string) => {
       return program.methods.cancelProject(ident.toString()).rpc()
     }, // I don't why this doesnt need async>
@@ -120,5 +114,5 @@ export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
     },
     onError: (err: Error) => toast.error('Failed updating project', { description: err.message }),
   })
-  return { program, programId, accountQuery, updateProject, updateProjectProgress, cancelProject }
+  return { program, accountQuery, updateProject, updateProjectProgress, cancelProject }
 }
