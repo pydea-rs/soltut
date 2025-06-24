@@ -34,8 +34,8 @@ pub mod projman {
 
         project.ident = ident;
         project.title = title;
-
-        require!(get_time() <= starts_at, ProjmanErrors::InvalidTime);
+        project.created_at = get_time();
+        require!(project.created_at <= starts_at, ProjmanErrors::InvalidTime);
         project.starts_at = starts_at;
         project.description = description;
         project.progress = 0.0_f32;
@@ -171,4 +171,5 @@ pub struct Project {
     pub progress: f32,
     pub starts_at: u64,
     pub bump: u8,
+    pub created_at: u64,
 }

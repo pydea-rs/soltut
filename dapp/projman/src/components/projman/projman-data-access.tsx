@@ -7,7 +7,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useCluster } from '../cluster/cluster-data-access'
 import { useAnchorProvider } from '../solana/solana-provider'
-import { CreateNewProjectArgs, UpdateProjectArgs, UpdateProjectProgressArgs } from './types'
+import { CreateNewProjectArgs, UpdateProjectArgs, UpdateProjectProgressArgs } from './projman-types'
 import * as anchor from '@coral-xyz/anchor'
 import { useTransactionToast } from '../use-transaction-toast'
 import { toast } from 'sonner'
@@ -25,7 +25,7 @@ export function useProjmanProgram() {
 
   const accounts = useQuery({
     queryKey: ['ProjmanAccounts', 'all', { cluster }],
-    queryFn: () => program.account.project.all(),
+    queryFn: async () => (await program.account.project.all()).sort((a, b) => b.account.createdAt.toNumber() - a.account.createdAt.toNumber()),
   })
 
   const getProgramAccount = useQuery({
@@ -84,7 +84,7 @@ export function useProjmanProgramAccount({ account }: { account: PublicKey }) {
       transactionToast(signature)
       toast.success(`Projetct successfully updated.`)
       accounts.refetch()
-      accountQuery.refetch()
+      accountQuery.refetch() // TODO: check if accounts.refetch update this too?
     },
     onError: (err: Error) => toast.error('Failed updating project', { description: err.message }),
   })

@@ -21,7 +21,7 @@ export function getProjmanProgramId(cluster: Cluster) {
     case 'devnet':
     case 'testnet':
       // This is the program ID for the Projman program on devnet and testnet.
-      return new PublicKey('6z68wfurCMYkZG51s1Et9BJEd9nJGUusjHXNt4dGbNNF')
+      return new PublicKey('EVv5dxogrbbrWL6Yywv2JFAHqcdeoo2LMrj8BPgFfsm1')
     case 'mainnet-beta':
     default:
       return PROJMAN_PROGRAM_ID
