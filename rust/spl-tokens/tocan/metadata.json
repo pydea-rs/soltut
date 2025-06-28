@@ -2,5 +2,5 @@
     "name": "TOCAN",
     "symbol": "TOCAN",
     "description": "Whatever",
-    "image": ""
+    "image": "https://raw.githubusercontent.com/pydea-rs/soltut/master/rust/spl-tokens/tocan/tocan.png"
 }
