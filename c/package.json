@@ -1,0 +1,22 @@
+{
+  "name": "col_counter",
+  "version": "1.0.0",
+  "description": "Sample Counter Solana Program using C & C++",
+  "main": "client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pydea-rs/soltut.git"
+  },
+  "author": "pydea-rs",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pydea-rs/soltut/issues"
+  },
+  "homepage": "https://github.com/pydea-rs/soltut#readme",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4"
+  }
+}
